@@ -2,9 +2,11 @@ import Phaser from 'phaser'
 import MainScene from './scenes/MainScene'
 const config = {
 	type: Phaser.AUTO,
-	width: 800,
-	height: 600,
+	width: 1024,
+	height: 768,
 	scene: [MainScene]
 }
 
-export default new Phaser.Game(config)
+export var game:Phaser.Game;
+
+game = new Phaser.Game(config)

@@ -8,6 +8,9 @@ export default class MainScene extends Phaser.Scene {
     apple1: Phaser.GameObjects.Image; // 蘋果
     diameter = 150; // 正方形直徑
     imageDiameter = this.diameter * 0.7;
+
+    speed = 0;// 滾動速度
+    isDone = false;
     constructor() {
         super('MainScene')
     }
@@ -23,6 +26,19 @@ export default class MainScene extends Phaser.Scene {
             this.creatContainer(i);
         }
 
+        this.addSpeed();
+
+
+        // 加入按鈕1
+        const buttonOne = this.add.text(100, 300, '停止', { fill: '#0f0' });
+        buttonOne.setInteractive();
+        buttonOne.on('pointerdown', () => { this.reduceSpeed() });
+
+
+        // 加入按鈕２
+        const buttonTwo = this.add.text(300, 300, '繼續', { fill: '#0f0' });
+        buttonTwo.setInteractive();
+        buttonTwo.on('pointerdown', () => { this.isDone = false, this.addSpeed() });
 
     }
 
@@ -54,40 +70,76 @@ export default class MainScene extends Phaser.Scene {
     addItem(container: Phaser.GameObjects.Container, x: number, y: number) {
         const keyList = ['apple', 'orange', 'strawberry'];
         const randomIndex = Math.floor(Math.random() * 3); // 隨機產生0~2
-        var item = this.add.image(x, y, keyList[randomIndex]);
+        var item = this.add.image(x, y, keyList[0]);
         item.displayHeight = this.imageDiameter; // 設置寬 為容器寬的一半
         item.scaleX = item.scaleY // 等比縮放
         container.add(item);// 蘋果加入容器
     }
 
 
+
+    // 漸漸加速
+    addSpeed() {
+
+        var interval = setInterval(() => {
+            if (this.speed < 10) {
+                this.speed += 2
+            } else {
+                clearInterval(interval);
+            }
+        }, 200);
+    }
+
+    reduceSpeed() {
+        var interval = setInterval(() => {
+            if (this.speed > 1) {
+                this.speed -= 1
+            } else {
+
+                this.isDone = true
+                clearInterval(interval);
+            }
+        }, 200);
+    }
+
     update() {
-        // this.num += 1;
 
-
-        // if (this.num % 20 == 0) {
-        //     this.addItem();
-        // }
-
-        // this.container.list.map((item: Phaser.GameObjects.Image) => {
-        //     item.y += 5;
-
-        // })
-
-
-
-        this.containerList[0].list
 
         // 只要在容器內所有的item 都要移動
-        this.containerList[0].list.map((item: Phaser.GameObjects.Sprite) => {
-            item.y += 5;
-            // item.body.position.y += 5;
+        this.containerList[0].list.map((item: Phaser.GameObjects.Image) => {
             const itemHalfHeight = item.height / 2;
+
+
+            if (this.isDone) {
+                // @ts-ignore
+                if (item.isover !== true) {
+                    // 這樣停止時.container內只會有一個東西
+                    if (item.y < this.containerList[0].height / 2) {
+                        item.y += 1;
+                    }
+                }
+                // @ts-ignore
+                if (item.isover == true) {
+                    item.y += 1;
+                    // 物品完全跑出畫面時,銷毀
+                    if (item.y > this.containerList[0].height + itemHalfHeight) {
+                        item.destroy()
+                    }
+                }
+                return;
+            }
+
+            item.y += this.speed;
+            // item.body.position.y += 5;
+
             // 物品跑到一半時,加入新的物件
             if (item.y + itemHalfHeight > this.containerList[0].height) {
 
                 if (this.containerList[0].list.length < 2) {
+                    // @ts-ignore
+                    item.isover = true; //加入新物件時,舊的給個標記
                     this.addItem(this.containerList[0], this.diameter / 2, -this.diameter / 2);
+
                 }
             }
             // 物品完全跑出畫面時,銷毀

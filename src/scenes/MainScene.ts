@@ -5,17 +5,19 @@ import { game } from '../main'
 interface ContainerModle {
     container: Phaser.GameObjects.Container;
     speed: number;
-    isDone: boolean;
+    isDone: boolean; // 被按下停止按鈕
 }
+
+// isExpired: boolean; // 是否已經過期(水果移動超過空間的一半會被標記為過期)
 
 export default class MainScene extends Phaser.Scene {
 
 
     containerList: ContainerModle[] = [];
-    apple1: Phaser.GameObjects.Image; // 蘋果
-    rectWidth = 150; // 正方形直徑
-    rectHeight = 255;
-    imageDiameter = this.rectWidth * 0.9;
+    apple1: Phaser.GameObjects.Image;
+    rectWidth = 150; // 方形寬  
+    rectHeight = 255; // 方形長
+    imageDiameter = this.rectWidth * 0.9; // 圖片寬
 
     constructor() {
         super('MainScene')
@@ -66,10 +68,21 @@ export default class MainScene extends Phaser.Scene {
         // 加入按鈕 全部開始
         const buttonFour = this.add.text(800, 580, '開始', { fill: '#0f0' });
         buttonFour.setInteractive();
-        buttonFour.on('pointerdown', () => { this.startRun() });
+        buttonFour.on('pointerdown', () => {
+            this.allStartRun()
+        });
+
+        // 加入按鈕 全部停止
+        const buttonFive = this.add.text(800, 680, '全部停止', { fill: '#0f0' });
+        buttonFive.setInteractive();
+        buttonFive.on('pointerdown', () => {
+            this.allStopInorder()
+        });
+
+
 
     }
-
+    /** 新增一個矩型容器+遮罩 */
     creatContainer(index: number) {
         //設置container
         var newContainer = this.add.container(214 + 212 * index, 295);
@@ -77,7 +90,7 @@ export default class MainScene extends Phaser.Scene {
         newContainer.height = this.rectHeight;
 
         // 設置圖片加入container
-        this.addItem(newContainer, this.rectWidth / 2, this.rectHeight / 2);
+        this.addItemToContainer(newContainer, this.rectWidth / 2, this.rectHeight / 2);
 
         // container 加入遮罩(就是畫一個跟container一樣長寬的矩形遮住它)
         var graphics = this.add.graphics(); // graphics 是繪製基本圖型的方法
@@ -88,9 +101,9 @@ export default class MainScene extends Phaser.Scene {
         // graphics.strokeRect(0, 0, this.rectWidth, this.rectHeight); // 筆畫方行
         graphics.fillStyle(color, 0); // 全透明 ,這樣遮上去,透明部分才會露出來,看得到底下的東西
         graphics.fillRect(0, 0, this.rectWidth, this.rectHeight); // 方形
-        graphics.x = newContainer.x;
-        graphics.y = newContainer.y;
-        newContainer.mask = new Phaser.Display.Masks.GeometryMask(this, graphics);
+        graphics.x = newContainer.x; // 遮罩的x座標對齊容器x座標
+        graphics.y = newContainer.y; // 遮罩的y座標對齊容器x座標
+        newContainer.mask = new Phaser.Display.Masks.GeometryMask(this, graphics); // 容器加入遮罩
 
         var obj = {
             container: newContainer,
@@ -103,63 +116,53 @@ export default class MainScene extends Phaser.Scene {
 
 
 
-    addItem(container: Phaser.GameObjects.Container, x: number, y: number) {
+    addItemToContainer(container: Phaser.GameObjects.Container, x: number, y: number) {
         const keyList = ['bar', 'bell', 'cherry', 'diamond', 'grape', 'orange', 'seven', 'star', 'watermelon'];
         const randomIndex = Math.floor(Math.random() * 9); // 隨機產生0~8
         var item = this.add.image(x, y, keyList[randomIndex]);
         item.displayHeight = this.imageDiameter; // 設置寬 為容器寬的一半
         item.scaleX = item.scaleY // 等比縮放
-        container.add(item);// 蘋果加入容器
+        container.add(item);// 加入容器
     }
 
 
-
-    // 所有container漸漸加速
-    startRun() {
-        //container 的index
-        var index = 0;
-        //每700毫秒換下一個啟動
-        var startInterval = setInterval(() => {
-            this.addSpeed(index);
-            // 換下一個container 啟動
-            index += 1;
-            if (index >= this.containerList.length) {
-                clearInterval(startInterval);
-            }
-        }, 630)
+    /** 所有container漸漸加速 */
+    allStartRun() {
+        for (let i = 0; i < 3; i++) {
+            this.addSpeed(i);
+        };
     }
 
-    //漸漸加速
+    /** 單一container漸漸加速 */
     addSpeed(index: number) {
         this.containerList[index].isDone = false;
-        var interval = setInterval(() => {
-            if (this.containerList[index].speed < 15) {
-                this.containerList[index].speed += 2
+        this.containerList[index].speed = 15;
+    }
+
+    /** 全部依序停止 */
+    allStopInorder() {
+        let index = 0;
+        let interval = setInterval(() => {
+            if (index < 3) {
+                this.reduceSpeed(this.containerList[index]);
+                index += 1;
             } else {
                 clearInterval(interval);
-                // 已經到最快速度了
-
-                // 三秒後沒停止,自己停
-                setTimeout(() => {
-                    if (this.containerList[index].isDone == false) {
-                        this.reduceSpeed(this.containerList[index]);
-                    }
-                }, 3000)
             }
-        }, 200);
+        }, 500);
     }
 
 
-    // 漸漸減速
+    // 單一container漸漸減速
     reduceSpeed(obj: ContainerModle) {
-        var interval = setInterval(() => {
-            if (obj.speed > 2) {
-                obj.speed -= 2
-            } else {
-                obj.isDone = true
-                clearInterval(interval);
-            }
-        }, 200);
+        obj.isDone = true
+        // var interval = setInterval(() => {
+        //     if (obj.speed > 2) {
+        //         obj.speed -= 1
+        //     } else {
+        //         clearInterval(interval);
+        //     }
+        // }, 50); //這要短,才不會讓interval 清除得太慢
     }
 
     update() {
@@ -170,16 +173,23 @@ export default class MainScene extends Phaser.Scene {
 
                 // 已經被按下停止鈕
                 if (obj.isDone) {
-                    // @ts-ignore
-                    if (item.isover !== true) {//如果沒有被標記代表是在一半以上
-                        // 這樣停止時.container內只會有一個東西
-                        if (item.y < obj.container.height / 2) {
-                            item.y += 2;
+                    // 不管在什麼位置,都要生成下一個新的並且停在中間
+                    // 如果只有一個代表他剛生成
+
+                    const centerYPostion = obj.container.height / 2;
+
+                    if (item.y < centerYPostion) {
+                        if (centerYPostion - item.y > 8) {
+                            item.y += 8;
+                        } else {
+                            item.y += centerYPostion - item.y - 0.5
+
                         }
                     }
+                    // 過期物件處理
                     // @ts-ignore
-                    if (item.isover == true) { // 被標記在一半以下
-                        item.y += 2;
+                    if (item.isExpired == true) {
+                        item.y += 8;
                         // 物品完全跑出畫面時,銷毀
                         if (item.y > obj.container.height + itemHalfHeight) {
                             item.destroy()
@@ -187,16 +197,18 @@ export default class MainScene extends Phaser.Scene {
                     }
                     return;
                 }
+
                 // 一般情況
-                // 物體向下移動
+                // 物體持續向下移動
                 item.y += obj.speed;
 
-                // 物品跑到一半時,加入新的物件
-                if (item.y + item.height > obj.container.height) {
+                // 物品超過容器中央,標記為過期
+                if (item.y > obj.container.height / 2) {
+                    // @ts-ignore
+                    item.isExpired = true;
+                    // 並加入新物件
                     if (obj.container.list.length < 2) {
-                        // @ts-ignore
-                        item.isover = true; //加入新物件時,舊的給個標記
-                        this.addItem(obj.container, this.rectWidth / 2, -this.rectHeight / 2);
+                        this.addItemToContainer(obj.container, this.rectWidth / 2, -this.rectHeight / 2);
                     }
                 }
                 // 物品完全跑出畫面時,銷毀
@@ -209,3 +221,5 @@ export default class MainScene extends Phaser.Scene {
 
     }
 }
+
+

@@ -138,7 +138,12 @@ export default class RatioScene extends Phaser.Scene {
         const actionButton = this.add.sprite(0, 0, 'button', 0);
         this.alignGrid.scaleToGridWidth(actionButton);
 
-        const actionButtonText = this.add.text(0, 0, title, { fill: '#000000' });
+        var fontSize = '16px';
+        if (this.gameScreenWidth <= 400) {
+            fontSize = '12px';
+        }
+
+        const actionButtonText = this.add.text(0, 0, title, { fill: '#000000', fontSize: fontSize });
         container.add(actionButton);
         container.add(actionButtonText);
         actionButtonText.setOrigin(0.5, 0.5)

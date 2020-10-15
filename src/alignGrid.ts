@@ -72,17 +72,24 @@ export class AlignGrid {
         obj.displayWidth = this.gameWidth * ratio;
         obj.scaleY = obj.scaleX;
     }
-    /** 將物件縮小跟網格寬ㄧ樣 */
+    /** 將物件縮放跟網格寬ㄧ樣 */
     public scaleToGridWidth(obj: any) {
         obj.displayWidth = this.gameWidth / this.cols;
         obj.scaleY = obj.scaleX;
     }
 
-    /** 將物件縮小跟網格寬ㄧ樣 */
+    /** 將物件縮放跟網格高ㄧ樣 */
     public scaleToGridHeight(obj: any) {
         obj.displayHeight = this.gameHeight / this.rows;
         obj.scaleX = obj.scaleY
     }
+
+    /** 將物件縮放至n個網格高 */
+    public scaleToNMultipleGridHeight(obj: any, multipe: number) {
+        obj.displayHeight = (this.gameHeight / this.rows) * multipe;
+        obj.scaleX = obj.scaleY
+    }
+
 
     /** 顯示網格(可以debug用) */
     private showGrid() {

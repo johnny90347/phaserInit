@@ -4,7 +4,6 @@ import { AlignGrid } from '../alignGrid'
 
 interface ContainerModle {
     container: Phaser.GameObjects.Container;
-    speed: number;
     isDone: boolean; // 此容器被按下停止按鈕
 }
 
@@ -12,21 +11,30 @@ interface ContainerModle {
 
 export default class RatioScene extends Phaser.Scene {
 
+    gameScreenWidth = 0;
+    gameScreenHeight = 0;
 
-    containerList: ContainerModle[] = [];
-    rectWidth = 150; // 方形寬  
-    rectHeight = 255; // 方形長
-    imageDiameter = this.rectWidth * 0.9; // 圖片寬
-    round = 0;// 回合
+    slotBoxList: ContainerModle[] = [];
+    slotBoxWidth = 0; // 角子機box寬
+    slotBoxHeight = 0; // 角子機box的長
+    slotMachine: Phaser.GameObjects.Image // 角子機的圖案
+
     timer: any; // 自動依序停止的timer
-    finishContainer = 0; // 已經結束動作的container
-    slotMachine: Phaser.GameObjects.Image
+    finishSlotBox = 0; // 已經結束動作的container
+    alignGrid: AlignGrid; // 網格的class
+    slotDropSpeed = 0;
+    machineIsRun = false; // 機器現在有沒有在跑
+    round = 0;// 機器已經跑了幾回合
+    maxCanRunRound = 100;//最多可以讓他跑幾回合;(可以抽幾次獎項)
+
     constructor() {
         super('HomeScene')
     }
 
     preload() {
         this.load.image('slot-machine', 'assets/slot-machine.png');
+        this.load.spritesheet('button', 'assets/button.png', { frameWidth: 374, frameHeight: 127 });
+
         this.load.image('bar', 'assets/bar.png');
         this.load.image('bell', 'assets/bell.png');
         this.load.image('cherry', 'assets/cherry.png');
@@ -39,69 +47,139 @@ export default class RatioScene extends Phaser.Scene {
 
     }
     create() {
-        var gameWidth = +game.config.width;
-        var gameHeight = +game.config.height;
-
-        const gridConfig = {
-            'scene': this,
-            'cols': 1,
-            'rows': 2,
-            'gameHeight': gameHeight,
-            'gameWidth': gameWidth
-        }
-
-
-        this.slotMachine = this.add.image(gameWidth / 2, gameHeight / 2, 'slot-machine');
-
-        var alignGrid = new AlignGrid(gridConfig);
-        alignGrid.showGridNumber();
-        alignGrid.placeAtIndex(1, this.slotMachine);
-        alignGrid.scaleToGridHeight(this.slotMachine);
-
-        this.drawRect(this.slotMachine.x - this.slotMachine.displayWidth / 2, this.slotMachine.y - this.slotMachine.displayHeight / 2, this.slotMachine.displayWidth, this.slotMachine.displayHeight)
-
-        for (let i = 0; i < 3; i++) {
-            this.creatContainer(i);
-        }
-
-
-
-
-        // 加入按鈕1- 停止
-        const buttonOne = this.add.text(270, 580, '停止', { fill: '#0f0' });
-        buttonOne.setInteractive();
-        buttonOne.on('pointerdown', () => { this.stopContainerScroll(this.containerList[0]) });
-
-
-        // 加入按鈕2 - 停止
-        const buttonTwo = this.add.text(470, 580, '停止', { fill: '#0f0' });
-        buttonTwo.setInteractive();
-        buttonTwo.on('pointerdown', () => { this.stopContainerScroll(this.containerList[1]) });
-
-        // 加入按鈕- 停止
-        const buttonThree = this.add.text(670, 580, '停止', { fill: '#0f0' });
-        buttonThree.setInteractive();
-        buttonThree.on('pointerdown', () => { this.stopContainerScroll(this.containerList[2]) });
-
-
-        // 加入按鈕 全部開始
-        const buttonFour = this.add.text(800, 580, '開始', { fill: '#0f0' });
-        buttonFour.setInteractive();
-        buttonFour.on('pointerdown', () => {
-            this.allStartRun()
-        });
-
-        // 加入按鈕 全部停止
-        const buttonFive = this.add.text(800, 680, '全部停止', { fill: '#0f0' });
-        buttonFive.setInteractive();
-        buttonFive.on('pointerdown', () => {
+        // 基礎設定
+        this.gameScreenWidth = +game.config.width;
+        this.gameScreenHeight = +game.config.height;
+        this.slotDropSpeed = +game.config.height; // 高度跟掉落速度設定一樣
+        // 建立物件
+        // 角子機
+        this.createSlotMachine();
+        // 角子機內滾動的盒子
+        this.createSlotBox();
+        // 開始按鈕
+        this.createButton(18, '开始', (() => {
+            this.allBoxStartRun();
+        }));
+        // 停止按鈕
+        this.createButton(16, '全部停止', (() => {
             this.allStopImmediately()
-        });
+        }));
+    }
+    update() {
+        this.slotBoxList.map((obj: ContainerModle) => {
+            // 只要在容器內所有的item 都要移動
+            obj.container.list.map((item: Phaser.Physics.Arcade.Sprite) => {
+                const itemHalfHeight = item.height / 2;
+
+                // @ts-ignore
+                if (item.haveToStop == true) {
+                    const centerYPostion = obj.container.height / 2;
+                    const centerXPostion = obj.container.width / 2;
+                    if (item.y < centerYPostion) {
+                        if (centerYPostion - item.y < 4) {
+                            // 停止了之後,完成的container 加1,如果已經加到3 代表要結算成績了
+                            item.body.reset(centerXPostion, centerYPostion);
+                            this.finishSlotBox += 1;
+                            if (this.finishSlotBox === 3) {
+                                //全部都跑完了
+                                this.machineIsRun = false;
+                                // 要結算成績
+                                this.calculateResult();
+                            }
+
+                        }
+                    }
+                }
+
+                // 物品超過容器中央,標記為過期
+                if (item.y > obj.container.height / 2) {
+                    // 並加入新物件
+                    if (obj.container.list.length < 2) {
+                        // 已經被按下停止鈕
+                        if (obj.isDone) {
+                            this.addItemToBox(obj.container, this.slotBoxWidth / 2, -this.slotBoxHeight / 2, true, true);
+                        } else {
+                            this.addItemToBox(obj.container, this.slotBoxWidth / 2, -this.slotBoxHeight / 2, false, true);
+                        }
+                    }
+                }
+                // 物品完全跑出畫面時,銷毀
+                if (item.y > obj.container.height + itemHalfHeight) {
+                    item.destroy()
+                }
+            })
+
+        })
 
     }
-    /** 新增一個矩型容器+遮罩 */
-    creatContainer(index: number) {
 
+    /** 畫一格矩行框框 */
+    drawRectLine(x: number, y: number, width: number, height: number, color: any, alpha: number): Phaser.GameObjects.Graphics {
+        var graphics = this.add.graphics(); // graphics 是繪製基本圖型的方法
+        var thickness = 2;
+        graphics.lineStyle(thickness, color, alpha); // 線條的樣式
+        graphics.strokeRect(x, y, width, height);
+        return graphics;
+    }
+
+    /** 畫一個矩行充滿顏色的框框 */
+    drawFillRect(x: number, y: number, width: number, height: number, color: any, alpha: number): Phaser.GameObjects.Graphics {
+        var graphics = this.add.graphics();
+        graphics.fillStyle(color, alpha);
+        graphics.fillRect(x, y, width, height);
+        return graphics;
+    }
+
+    /** 創造一個基本按鈕 */
+    createButton(placeIndex: number, title: string, onTap: Function) {
+        var container = this.add.container(0, 0)
+        this.alignGrid.placeAtIndex(placeIndex, container);
+
+        const actionButton = this.add.sprite(0, 0, 'button', 0);
+        this.alignGrid.scaleToGridWidth(actionButton);
+
+        const actionButtonText = this.add.text(0, 0, title, { fill: '#000000' });
+        container.add(actionButton);
+        container.add(actionButtonText);
+        actionButtonText.setOrigin(0.5, 0.5)
+        actionButton.setInteractive();
+        actionButton.on('pointerdown', () => {
+            actionButton.setFrame(1);
+            onTap();
+        });
+        actionButton.on('pointerup', () => {
+            actionButton.setFrame(0);
+        });
+    }
+    /** 建立角子機的機器圖案 */
+    createSlotMachine() {
+        const gridConfig = {
+            'scene': this,
+            'cols': 5,
+            'rows': 4,
+            'gameHeight': this.gameScreenHeight,
+            'gameWidth': this.gameScreenWidth
+        }
+
+        this.slotMachine = this.add.image(0, 0, 'slot-machine');
+
+        this.alignGrid = new AlignGrid(gridConfig);
+        this.alignGrid.showGridNumber();
+        this.alignGrid.placeAtIndex(7, this.slotMachine);
+        this.alignGrid.scaleToNMultipleGridHeight(this.slotMachine, 3)
+
+        this.drawRectLine(this.slotMachine.x - this.slotMachine.displayWidth / 2, this.slotMachine.y - this.slotMachine.displayHeight / 2, this.slotMachine.displayWidth, this.slotMachine.displayHeight, 0xff32c98d, 1);
+    }
+
+    /** 產生讓水果滾動的Box (需要三個) */
+    createSlotBox() {
+        for (let i = 0; i < 3; i++) {
+            this.generateBox(i);
+        }
+    }
+
+    /** 新增一個矩型容器+遮罩 */
+    generateBox(index: number) {
         // 整台機器(照片)的最左上角位置(以這邊為原點做計算)
         const originX = this.slotMachine.x - this.slotMachine.displayWidth / 2;
         const originY = this.slotMachine.y - this.slotMachine.displayHeight / 2;
@@ -111,37 +189,28 @@ export default class RatioScene extends Phaser.Scene {
         const boxWidth = machineWidth * (1.50 / 9.1);
         const boxHeight = machineHeight * (2.5 / 5.8);
         //設置container
-        var newContainer = this.add.container(originX + machineWidth * (1.7 / 9.1) + (machineWidth * (0.48 / 9.1) + boxWidth) * index, originY + (machineHeight * (2 / 5.8)));
-        newContainer.width = boxWidth;
-        newContainer.height = boxHeight;
+        var newSlotBox = this.add.container(originX + machineWidth * (1.7 / 9.1) + (machineWidth * (0.48 / 9.1) + boxWidth) * index, originY + (machineHeight * (2 / 5.8)));
+        newSlotBox.width = boxWidth;
+        newSlotBox.height = boxHeight;
+        this.slotBoxWidth = boxWidth; // box 寬度拿上去
+        this.slotBoxHeight = boxHeight; // box 高度拿上去
 
         // 設置圖片加入container
-        this.addItemToContainer(newContainer, this.rectWidth / 2, this.rectHeight / 2, true, false);
-
-        // container 加入遮罩(就是畫一個跟container一樣長寬的矩形遮住它)
-        var graphics = this.add.graphics(); // graphics 是繪製基本圖型的方法
-        var color = 0xffffff;
-        var thickness = 2;
-        var alpha = 1;
-        graphics.lineStyle(thickness, color, alpha); // 線條的樣式
-        graphics.strokeRect(0, 0, newContainer.width, newContainer.height); // 筆畫方行
-        graphics.fillStyle(color, 0); // 全透明 ,這樣遮上去,透明部分才會露出來,看得到底下的東西
-        graphics.fillRect(0, 0, newContainer.width, newContainer.height); // 方形
-        graphics.x = newContainer.x; // 遮罩的x座標對齊容器x座標
-        graphics.y = newContainer.y; // 遮罩的y座標對齊容器x座標
-        newContainer.mask = new Phaser.Display.Masks.GeometryMask(this, graphics); // 容器加入遮罩
-
+        this.addItemToBox(newSlotBox, boxWidth / 2, boxHeight / 2, true, false);
+        // 產生矩行遮罩的位置及大小
+        const graphics = this.drawFillRect(newSlotBox.x, newSlotBox.y, newSlotBox.width, newSlotBox.height, 0xffffff, 0);
+        this.drawRectLine(newSlotBox.x, newSlotBox.y, newSlotBox.width, newSlotBox.height, 0xffffff, 1);
+        // 將box加入遮罩
+        newSlotBox.mask = new Phaser.Display.Masks.GeometryMask(this, graphics); // 容器加入遮罩
         var obj = {
-            container: newContainer,
-            speed: 0,
+            container: newSlotBox,
             isDone: false
         }
-        this.containerList.push(obj);
+        this.slotBoxList.push(obj);
     }
 
-
     /** 將item加入容器 */
-    addItemToContainer(container: Phaser.GameObjects.Container, x: number, y: number, haveToStop: boolean, autoMove: boolean) {
+    addItemToBox(container: Phaser.GameObjects.Container, x: number, y: number, haveToStop: boolean, autoMove: boolean) {
         const keyList = [{
             key: 'orange',
             odds: 1,
@@ -189,7 +258,7 @@ export default class RatioScene extends Phaser.Scene {
         }];
         const randomIndex = Math.floor(Math.random() * 9); // 隨機產生0~8
         var item = this.physics.add.sprite(x, y, keyList[randomIndex].key);
-        item.displayHeight = this.imageDiameter; // 設置寬 為容器寬的一半
+        item.displayHeight = this.slotBoxWidth * 0.8; // 設置寬 為容器寬的一半
         item.scaleX = item.scaleY // 等比縮放
         // 加入賠率跟Id
         // @ts-ignore
@@ -204,20 +273,25 @@ export default class RatioScene extends Phaser.Scene {
         // 新增出來的物件直接都會往下掉,但不會停
 
         if (autoMove == true) {
-            this.physics.moveTo(item, container.width / 2, 200, 800);
+            this.physics.moveTo(item, container.width / 2, 200, this.slotDropSpeed);
         }
     }
 
-
-
     /** 所有container內物件開始移動 */
-    allStartRun() {
-        this.finishContainer = 0;// 歸零
+    allBoxStartRun() {
+        if (this.machineIsRun == true) { return }
+        if (this.round >= this.maxCanRunRound) {
+            console.log('超過最多可以轉的次數了');
+            return;
+        }
+        this.round += 1;
+        this.finishSlotBox = 0;// 歸零
+        this.machineIsRun = true;
 
-        this.containerList.map((obj: ContainerModle) => {
+        this.slotBoxList.map((obj: ContainerModle) => {
             obj.isDone = false
             obj.container.list.map((item: Phaser.Physics.Arcade.Sprite) => {
-                this.physics.moveTo(item, obj.container.width / 2, 200, 800);
+                this.physics.moveTo(item, obj.container.width / 2, 200, this.slotDropSpeed);
             })
         })
         // 2秒後 如果是同一回合,要自動停
@@ -231,7 +305,7 @@ export default class RatioScene extends Phaser.Scene {
         let index = 0;
         let interval = setInterval(() => {
             if (index < 3) {
-                this.stopContainerScroll(this.containerList[index]);
+                this.stopSingleBoxScroll(this.slotBoxList[index]);
                 index += 1;
             } else {
                 clearInterval(interval);
@@ -243,21 +317,20 @@ export default class RatioScene extends Phaser.Scene {
     /** 全部container 馬上停止 */
     allStopImmediately() {
         clearTimeout(this.timer);
-
-        this.containerList.map((obj: ContainerModle) => {
-            this.stopContainerScroll(obj)
+        this.slotBoxList.map((obj: ContainerModle) => {
+            this.stopSingleBoxScroll(obj);
         })
     }
 
     // 單一container內物件停止
-    stopContainerScroll(obj: ContainerModle) {
+    stopSingleBoxScroll(obj: ContainerModle) {
         obj.isDone = true
     }
 
     /** 結算成績 */
     calculateResult() {
         var tempItem = [];
-        this.containerList.map((obj: ContainerModle) => {
+        this.slotBoxList.map((obj: ContainerModle) => {
             obj.container.list.map((item: Phaser.Physics.Arcade.Sprite) => {
                 if (tempItem.length == 0) {// 第一個值先存進入
                     tempItem.push(item);
@@ -280,62 +353,5 @@ export default class RatioScene extends Phaser.Scene {
             console.log('沒中獎')
         }
 
-    }
-
-    update() {
-        this.containerList.map((obj: ContainerModle) => {
-            // 只要在容器內所有的item 都要移動
-            obj.container.list.map((item: Phaser.Physics.Arcade.Sprite) => {
-                const itemHalfHeight = item.height / 2;
-
-                // @ts-ignore
-                if (item.haveToStop == true) {
-                    const centerYPostion = obj.container.height / 2;
-                    const centerXPostion = obj.container.width / 2;
-                    if (item.y < centerYPostion) {
-                        if (centerYPostion - item.y < 4) {
-                            // 停止了之後,完成的container 加1,如果已經加到3 代表要結算成績了
-                            item.body.reset(centerXPostion, centerYPostion);
-                            this.finishContainer += 1;
-                            if (this.finishContainer === 3) {
-                                // 要結算成績
-                                this.calculateResult();
-                            }
-
-                        }
-                    }
-                }
-
-                // // 物品超過容器中央,標記為過期
-                // if (item.y > obj.container.height / 2) {
-                //     // 並加入新物件
-                //     if (obj.container.list.length < 2) {
-                //         // 已經被按下停止鈕
-                //         if (obj.isDone) {
-                //             this.addItemToContainer(obj.container, this.rectWidth / 2, -this.rectHeight / 2, true, true);
-                //         } else {
-                //             this.addItemToContainer(obj.container, this.rectWidth / 2, -this.rectHeight / 2, false, true);
-                //         }
-                //     }
-                // }
-                // 物品完全跑出畫面時,銷毀
-                if (item.y > obj.container.height + itemHalfHeight) {
-                    item.destroy()
-                }
-            })
-
-        })
-
-    }
-
-
-    /** 畫一格框框 */
-    drawRect(x: number, y: number, width: number, height: number) {
-        var graphics = this.add.graphics(); // graphics 是繪製基本圖型的方法
-        var color = 0xff32c98d;
-        var thickness = 2;
-        var alpha = 1;
-        graphics.lineStyle(thickness, color, alpha); // 線條的樣式
-        graphics.strokeRect(x, y, width, height);
     }
 }

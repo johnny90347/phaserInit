@@ -4,8 +4,9 @@ import MainScene from './scenes/MainScene'
 import HomeScene from './scenes/homeScene'
 const config = {
 	type: Phaser.AUTO,
-	width: 500,
-	height: 500,
+	width: 800,
+	height: 600,
+	transparent: false, // 背景透明
 	physics: {
 		default: 'arcade'
 	},

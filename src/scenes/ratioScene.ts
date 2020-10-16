@@ -17,7 +17,7 @@ export default class RatioScene extends Phaser.Scene {
     slotBoxList: ContainerModle[] = [];
     slotBoxWidth = 0; // 角子機box寬
     slotBoxHeight = 0; // 角子機box的長
-    slotMachine: Phaser.GameObjects.Image // 角子機的圖案
+    slotMachine: Phaser.GameObjects.Sprite // 角子機的圖案
 
     timer: any; // 自動依序停止的timer
     finishSlotBox = 0; // 已經結束動作的container
@@ -34,6 +34,7 @@ export default class RatioScene extends Phaser.Scene {
     preload() {
         this.load.image('slot-machine', 'assets/slot-machine.png');
         this.load.spritesheet('button', 'assets/button.png', { frameWidth: 374, frameHeight: 127 });
+        this.load.spritesheet('slot-machine-sprite', 'assets/slot-machine-sprite.png', { frameWidth: 502, frameHeight: 308 })
 
         this.load.image('bar', 'assets/bar.png');
         this.load.image('bell', 'assets/bell.png');
@@ -166,7 +167,21 @@ export default class RatioScene extends Phaser.Scene {
             'gameWidth': this.gameScreenWidth
         }
 
-        this.slotMachine = this.add.image(0, 0, 'slot-machine');
+        this.slotMachine = this.add.sprite(0, 0, 'slot-machine-sprite');
+        this.anims.create({
+            key: 'action',
+            frames: [
+                { key: 'slot-machine-sprite', frame: 0 },
+                { key: 'slot-machine-sprite', frame: 1 },
+                { key: 'slot-machine-sprite', frame: 2 },
+                { key: 'slot-machine-sprite', frame: 1 },
+                { key: 'slot-machine-sprite', frame: 0 },
+                // { key: 'slot-machine-sprite', frame: 3 },
+            ],
+            frameRate: 8,
+            repeat: 0
+        })
+
 
         this.alignGrid = new AlignGrid(gridConfig);
         this.alignGrid.showGridNumber();
@@ -289,6 +304,7 @@ export default class RatioScene extends Phaser.Scene {
             console.log('超過最多可以轉的次數了');
             return;
         }
+        this.slotMachine.play('action');
         this.round += 1;
         this.finishSlotBox = 0;// 歸零
         this.machineIsRun = true;

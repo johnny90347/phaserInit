@@ -2,15 +2,20 @@ import Phaser from 'phaser'
 import RatioScene from './scenes/ratioScene'
 import MainScene from './scenes/MainScene'
 import HomeScene from './scenes/homeScene'
+import PhysicsScene from './scenes/physics'
 const config = {
 	type: Phaser.AUTO,
-	width: 400,
-	height: 300,
+	width: 800,
+	height: 600,
 	transparent: false, // 背景透明
 	physics: {
-		default: 'arcade'
+		default: 'arcade',
+		arcade: {
+			debug: true,
+			// gravity: { y: 200 }
+		}
 	},
-	scene: [RatioScene]
+	scene: [PhysicsScene]
 }
 
 export var game: Phaser.Game;

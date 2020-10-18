@@ -86,10 +86,8 @@ export default class ThreePhysicsScene extends Phaser.Scene {
             'gameWidth': this.gameScreenWidth
         }
         this.alignGrid = new AlignGrid(gridConfig);
-        // this.alignGrid.showGridNumber();
 
         // 建立物件
-
         //生成group 碰撞用
         this.markCheckPointGroup = this.add.group();
         this.addItemCheckPointGroup = this.add.group();
@@ -103,73 +101,15 @@ export default class ThreePhysicsScene extends Phaser.Scene {
         // 角子機內滾動的盒子
         this.createSlotBox();
 
-
         // 開始按鈕
         this.createButton(18, '开始', (() => {
             this.allBoxStartRun();
         }));
 
-
-
         // 停止按鈕
         this.createButton(16, '全部停止', (() => {
             this.allStopImmediately()
         }));
-
-
-
-
-        // const orange = this.physics.add.sprite(0, 0, 'orange');
-        // this.alignGrid.placeAtIndex(16, orange);
-        // orange.setImmovable();
-        // this.bell = this.physics.add.image(0, 0, 'bell');
-        // this.alignGrid.placeAtIndex(6, this.bell);
-        // this.bell.setVelocity(0, 200);
-        // this.bell.setCollideWorldBounds(true);
-        // this.bell.setGravityY(this.gravity);
-        // this.bell.setMaxVelocity(0, 200);
-        // this.bell.setAccelerationY(200);// 加速度
-        // this.bell.setBounce(1, 1);
-        // var bell2 = this.physics.add.image(0, 0, 'bell');
-        // this.alignGrid.placeAtIndex(1, bell2);
-        // bell2.setGravityY(this.gravity);
-        // bell2.setCollideWorldBounds(true);
-        // bell2.setBounce(1, 1);
-        // bell2.setVelocityY(200)
-        // var group = this.add.group();
-        // group.add(orange);
-        // this.array.push(this.bell);
-        // var phy = this.physics.add.group()
-        // phy.add(this.bell);
-        // // phy.add(bell2);
-        // phy.setVelocityY(200)
-        // this.physics.add.collider(this.bell, group, ((bell: Phaser.Physics.Arcade.Sprite) => {
-        //     console.log('123')
-        //     bell.setVelocity(0, 10);
-        //     bell.setGravityY(0)
-        //     this.add.tween({ targets: bell, duration: 1000, y: 300, x: 250 });
-        //     this.add.tween({ targets: group.children.entries[0], duration: 100, y: 300, x: 250 });
-        //     group.children.entries[0].body.velocity.y = -200
-        // }));
-
-        // setTimeout(() => {
-        //     group.clear()
-        //     console.log(group)
-
-        //     this.array.map((item: Phaser.Physics.Arcade.Image) => {
-        //         item.setVelocityY(200)
-        //     })
-        // }, 5000)
-
-        // setTimeout(() => {
-        //     group.add(orange);
-
-        // }, 10000)
-
-        // const star = this.physics.add.sprite(0, 0, 'star');
-        // this.alignGrid.placeAtIndex(8, star);
-        // orange.setImmovable();
-        // this.debugInfoText = this.add.text(0, 0, `${this.bell.body.velocity.y}`, { fill: '#5093ad', fontSize: 16.0 });
     }
 
 
@@ -238,7 +178,6 @@ export default class ThreePhysicsScene extends Phaser.Scene {
                 { key: 'slot-machine-sprite', frame: 2 },
                 { key: 'slot-machine-sprite', frame: 1 },
                 { key: 'slot-machine-sprite', frame: 0 },
-                // { key: 'slot-machine-sprite', frame: 3 },
             ],
             frameRate: 8,
             repeat: 0
@@ -247,7 +186,7 @@ export default class ThreePhysicsScene extends Phaser.Scene {
         this.alignGrid.placeAtIndex(7, this.slotMachine);
         this.alignGrid.scaleToNMultipleGridHeight(this.slotMachine, 3)
 
-        this.drawRectLine(this.slotMachine.x - this.slotMachine.displayWidth / 2, this.slotMachine.y - this.slotMachine.displayHeight / 2, this.slotMachine.displayWidth, this.slotMachine.displayHeight, 0xff32c98d, 1);
+        // this.drawRectLine(this.slotMachine.x - this.slotMachine.displayWidth / 2, this.slotMachine.y - this.slotMachine.displayHeight / 2, this.slotMachine.displayWidth, this.slotMachine.displayHeight, 0xff32c98d, 1);
     }
 
     /** 產生讓水果滾動的Box (需要三個) */
@@ -299,6 +238,12 @@ export default class ThreePhysicsScene extends Phaser.Scene {
         markCheckPoint.setImmovable();
         lastFloorCheckPoint.setImmovable();
 
+        addItemCheckPoint.visible = false;
+        deleteCheckPoint.visible = false;
+        firstFloorCheckPoint.visible = false;
+        markCheckPoint.visible = false;
+        lastFloorCheckPoint.visible = false;
+
         this.addItemCheckPointGroup.add(addItemCheckPoint);
         this.deleteCheckPointGroup.add(deleteCheckPoint);
         this.firstFloorCheckPointGroup.add(firstFloorCheckPoint);
@@ -312,18 +257,18 @@ export default class ThreePhysicsScene extends Phaser.Scene {
         newSlotBox.add(lastFloorCheckPoint);
 
         this.slotBoxList.push(newSlotBox);
-        this.addItemToBox(newSlotBox, true);
+        this.addItemToBox(index, newSlotBox, true);
 
         // 產生矩行遮罩的位置及大小
         const graphics = this.drawFillRect(newSlotBox.x, newSlotBox.y, newSlotBox.width, newSlotBox.height, 0xffffff, 0);
-        this.drawRectLine(newSlotBox.x, newSlotBox.y, newSlotBox.width, newSlotBox.height, 0xffffff, 1);
+        // this.drawRectLine(newSlotBox.x, newSlotBox.y, newSlotBox.width, newSlotBox.height, 0xffffff, 1);
         // 將box加入遮罩
         newSlotBox.mask = new Phaser.Display.Masks.GeometryMask(this, graphics); // 容器加入遮罩
 
     }
 
     /** 將item加入容器 */
-    addItemToBox(container: Phaser.GameObjects.Container, isFirstCreated: boolean) {
+    addItemToBox(index: number, container: Phaser.GameObjects.Container, isFirstCreated: boolean) {
         const keyList = [{
             key: 'orange',
             odds: 1,
@@ -379,9 +324,7 @@ export default class ThreePhysicsScene extends Phaser.Scene {
 
         for (let i = 0; i < loopTime; i++) {
             const randomIndex = Math.floor(Math.random() * 9); // 隨機產生0~8
-
             var item: Phaser.Physics.Arcade.Sprite;
-
             if (isFirstCreated === true) {
                 item = this.physics.add.sprite(boxWidth / 2, 0 + (boxHeight / 2 * i), keyList[randomIndex].key);
             } else {
@@ -406,6 +349,8 @@ export default class ThreePhysicsScene extends Phaser.Scene {
             item.id = keyList[randomIndex].id;
             // @ts-ignore    
             item.key = keyList[randomIndex].key;
+            // @ts-ignore
+            item.containerIndex = index; // 因為下面push到結果欄時,無法保證他的順序,所以加個index判斷它是屬於哪個container,以備不時之需
 
             container.add(item);// 加入容器
 
@@ -414,14 +359,12 @@ export default class ThreePhysicsScene extends Phaser.Scene {
             // 增加碰撞條件, 每個碰到新增點 都要新增一個item
             const overlap = this.physics.add.overlap(item, this.addItemCheckPointGroup, ((item: Phaser.Physics.Arcade.Sprite) => {
                 overlap.destroy();
-                this.addItemToBox(container, false);
+                this.addItemToBox(index, container, false);
             }));
 
             // // 如果是下停止鈕,那要增加第一個檢查點的碰撞   
             if (this.machineTapStop === true) {
-
                 var tempGroup: Phaser.GameObjects.Group;
-
                 if (this.stopStep < 3) {
                     tempGroup = this.lastFloorCheckPointGroup;
                     this.stopStep += 1;
@@ -437,9 +380,7 @@ export default class ThreePhysicsScene extends Phaser.Scene {
                 }
 
                 const collider = this.physics.add.collider(item, tempGroup, ((item: Phaser.Physics.Arcade.Sprite) => {
-                    //碰到後做動畫                                                         //y =y原本的位置 - 盒子的一半的一半 + 自己item高的一半 
-
-
+                    //碰到後做動畫    //y =y原本的位置 - 盒子的一半的一半 + 自己item高的一半 
                     var yPosition = 0;
                     if (tempGroup === this.markCheckPointGroup) {
                         yPosition = boxHeight / 2;
@@ -447,34 +388,34 @@ export default class ThreePhysicsScene extends Phaser.Scene {
                         yPosition = boxHeight;
                     }
 
-                    this.add.tween({ targets: item, duration: 200, x: container.width / 2, y: yPosition }); // 最下面會有個10的偏差我就先不管
-                    // this.add.tween({ targets: item, duration: 200, x: container.width / 2, y: (item.y) }); // 最下面會有個10的偏差我就先不管
+                    this.add.tween({
+                        targets: item, duration: 200, x: container.width / 2, y: yPosition, onComplete: (() => {
+                            // 動畫完成後的callBack
+                            // 跑在markGroup的才需要丟進結果
+                            if (tempGroup === this.markCheckPointGroup) {
+                                this.resultList.push(item);
+                                // 結果欄有三個代表都跑完了,結算
+                                if (this.resultList.length === 3) {
+                                    console.log('回合完成');
+                                    console.log('結算瞜');
+                                    this.calculateResult();
 
-                    // 跑在markGroup的才需要丟進結果
-                    if (tempGroup === this.markCheckPointGroup) {
-                        this.resultList.push(item);
-                        // 有三個代表都跑完了,結算
-                        if (this.resultList.length === 3) {
-                            console.log('結算瞜');
-                            console.log(this.resultList)
-                        }
-                    }
-
+                                }
+                            }
+                        })
+                    }); // 最下面會有個10的偏差我就先不管
                     this.allItemList.push(item);
                     item.setVelocityY(0);
                     collider.destroy();
                 }));
             }
-
-
-
         }
-
-
     }
 
     /** 所有container內物件開始移動 */
     allBoxStartRun() {
+        if (this.machineIsRun === true) { return; }
+        this.machineIsRun = true;
         this.slotMachine.play('action');
         this.machineTapStop = false;
         this.allItemList.map((item: Phaser.Physics.Arcade.Sprite) => {
@@ -488,30 +429,13 @@ export default class ThreePhysicsScene extends Phaser.Scene {
 
     /** 全部container 馬上停止 */
     allStopImmediately() {
+        if (this.machineIsRun === false) { return; }
         this.machineTapStop = true;
     }
     /** 全部container依序停止 */
     allStopInorder() {
-        // let index = 0;
-        // let interval = setInterval(() => {
-        //     if (index < 3) {
-        //         this.stopSingleBoxScroll(this.slotBoxList[index]);
-        //         index += 1;
-        //     } else {
-        //         clearInterval(interval);
-        //     }
-        // }, 300);
+
     }
-
-
-    /** 全部container 馬上停止 */
-    // allStopImmediately() {
-    //     clearTimeout(this.timer);
-    //     this.slotBoxList.map((obj: ContainerModle) => {
-    //         this.stopSingleBoxScroll(obj);
-    //     })
-    // }
-
     // 單一container內物件停止
     stopSingleBoxScroll(obj: ContainerModle) {
         obj.isDone = true
@@ -519,29 +443,49 @@ export default class ThreePhysicsScene extends Phaser.Scene {
 
     /** 結算成績 */
     calculateResult() {
-        // var tempItem = [];
-        // this.slotBoxList.map((obj: ContainerModle) => {
-        //     obj.container.list.map((item: Phaser.Physics.Arcade.Sprite) => {
-        //         if (tempItem.length == 0) {// 第一個值先存進入
-        //             tempItem.push(item);
-        //             return;
-        //         }
-        //         // id跟存進去的一樣就push進去
-        //         // @ts-ignore
-        //         if (tempItem.length != 0 && tempItem[0].id == item.id) {
-        //             tempItem.push(item);
-        //             return;
-        //         }
-        //     })
-        // })
-        // // 裡面有放滿3個就是中獎了
-        // if (tempItem.length == 3) {
-        //     console.log('中獎拉');
-        //     console.log('項目', tempItem[0].key)
-        //     console.log('倍率', tempItem[0].odds)
-        // } else {
-        //     console.log('沒中獎')
-        // }
+        //@ts-ignore
+        const baseItem = this.resultList[0];// 基準值
+        var sameItems = []; // 與基準值比對.相同的存進去
+        var animationAmount = 0;
 
+        //開始比對
+        this.resultList.forEach((item: Phaser.Physics.Arcade.Sprite) => {
+            //@ts-ignore
+            if (item.id === baseItem.id) {
+                sameItems.push(item)
+            }
+        });
+
+        // 有三個代表中獎拉
+        if (sameItems.length === 3) {
+            //@ts-ignore
+            console.log('中獎內容', baseItem.key);
+            //@ts-ignore
+            console.log('中獎倍數', baseItem.odds);
+            this.resultList.forEach((item: Phaser.Physics.Arcade.Sprite) => {
+                this.add.tween({
+                    targets: item, duration: 300, scaleX: item.scaleX * 1.5, scaleY: item.scaleY * 1.5, onComplete: (() => {
+                        this.add.tween({
+                            targets: item, duration: 300, scaleX: item.scaleX / 1.5, scaleY: item.scaleY / 1.5, onComplete: (() => {
+                                animationAmount += 1;
+                                // 代表三個都做完動畫了
+                                if (animationAmount >= 3) {
+                                    console.log('本局全部完成');
+                                    this.machineIsRun = false;
+                                }
+                            })
+                        })
+                    })
+                })
+            })
+        }
+
+
+
+        if (sameItems.length < 3) {
+            console.log('沒中喔~,再接再厲')
+            console.log('本局全部完成');
+            this.machineIsRun = false;
+        }
     }
 }

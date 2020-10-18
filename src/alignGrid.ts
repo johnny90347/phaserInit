@@ -67,6 +67,7 @@ export class AlignGrid {
         const xx = index - (yy * this.cols);
         this.placeAt(xx, yy, obj);
     }
+
     /** 將物件縮小至螢幕寬度的幾％(輸入0-1) */
     public scaleToGameWidth(obj: any, ratio: number) {
         obj.displayWidth = this.gameWidth * ratio;

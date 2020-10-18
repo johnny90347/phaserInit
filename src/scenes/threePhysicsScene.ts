@@ -1,13 +1,12 @@
 import Phaser from 'phaser'
 import { game } from '../main'
 import { AlignGrid } from '../alignGrid'
-import { createJSDocThisTag } from 'typescript';
+
 
 interface ContainerModle {
     container: Phaser.GameObjects.Container;
     isDone: boolean; // 此容器被按下停止按鈕
 }
-
 
 export default class ThreePhysicsScene extends Phaser.Scene {
 
@@ -21,9 +20,7 @@ export default class ThreePhysicsScene extends Phaser.Scene {
     itemHeight = 0;//水果物件的寬
 
     timer: any; // 自動依序停止的timer
-    finishSlotBox = 0; // 已經結束動作的container
     alignGrid: AlignGrid; // 網格的class
-    slotDropSpeed = 0;
     machineIsRun = false; // 機器現在有沒有在跑
     round = 0;// 機器已經跑了幾回合
     maxCanRunRound = 100;//最多可以讓他跑幾回合;(可以抽幾次獎項)
@@ -36,11 +33,11 @@ export default class ThreePhysicsScene extends Phaser.Scene {
     markCheckPointGroup: Phaser.GameObjects.Group;// 第二層(我們要的)
     lastFloorCheckPointGroup: Phaser.GameObjects.Group;// 第三層
 
-    //最大重力
-    gravityValue = 540;
+    //最大掉落速度
+    dropSpeedValue = 350;
 
-    machineTapStop = false;//已經被按下停止了嗎?
-    stopStep = 0; //停止步驟
+    // machineTapStop = false;//已經被按下停止了嗎?
+    // stopStep = 0; //停止步驟 (如果按下停止,要依序生出由下到上碰撞檢查點的item)
 
 
     // 結果
@@ -80,12 +77,13 @@ export default class ThreePhysicsScene extends Phaser.Scene {
         // 建立網格
         const gridConfig = {
             'scene': this,
-            'cols': 5,
-            'rows': 4,
+            'cols': 9,
+            'rows': 8,
             'gameHeight': this.gameScreenHeight,
             'gameWidth': this.gameScreenWidth
         }
         this.alignGrid = new AlignGrid(gridConfig);
+        this.alignGrid.showGridNumber();
 
         // 建立物件
         //生成group 碰撞用
@@ -102,14 +100,26 @@ export default class ThreePhysicsScene extends Phaser.Scene {
         this.createSlotBox();
 
         // 開始按鈕
-        this.createButton(18, '开始', (() => {
+        this.createButton(35, '开始', (() => {
             this.allBoxStartRun();
         }));
-
-        // 停止按鈕
-        this.createButton(16, '全部停止', (() => {
+        // 全部停止按鈕
+        this.createButton(44, '全部停止', (() => {
             this.allStopImmediately()
         }));
+        // 停止按鈕1
+        this.createButton(56, '停止', (() => {
+            this.stopSingleBoxScroll(0);
+        }));
+        // 停止按鈕2
+        this.createButton(58, '停止', (() => {
+            this.stopSingleBoxScroll(1);
+        }));
+        // 停止按鈕3
+        this.createButton(60, '停止', (() => {
+            this.stopSingleBoxScroll(2);
+        }));
+
     }
 
 
@@ -141,7 +151,7 @@ export default class ThreePhysicsScene extends Phaser.Scene {
         const actionButton = this.add.sprite(0, 0, 'button', 0);
         this.alignGrid.scaleToGridWidth(actionButton);
 
-        var fontSize = '16px';
+        var fontSize = '12px';
         if (this.gameScreenWidth <= 400) {
             fontSize = '12px';
         }
@@ -159,16 +169,10 @@ export default class ThreePhysicsScene extends Phaser.Scene {
             actionButton.setFrame(0);
         });
     }
+
+
     /** 建立角子機的機器圖案 */
     createSlotMachine() {
-        const gridConfig = {
-            'scene': this,
-            'cols': 5,
-            'rows': 4,
-            'gameHeight': this.gameScreenHeight,
-            'gameWidth': this.gameScreenWidth
-        }
-
         this.slotMachine = this.add.sprite(0, 0, 'slot-machine-sprite');
         this.anims.create({
             key: 'action',
@@ -183,9 +187,8 @@ export default class ThreePhysicsScene extends Phaser.Scene {
             repeat: 0
         })
 
-        this.alignGrid.placeAtIndex(7, this.slotMachine);
-        this.alignGrid.scaleToNMultipleGridHeight(this.slotMachine, 3)
-
+        this.alignGrid.placeAtIndex(31, this.slotMachine);
+        this.alignGrid.scaleToNMultipleGridHeight(this.slotMachine, 6);
         // this.drawRectLine(this.slotMachine.x - this.slotMachine.displayWidth / 2, this.slotMachine.y - this.slotMachine.displayHeight / 2, this.slotMachine.displayWidth, this.slotMachine.displayHeight, 0xff32c98d, 1);
     }
 
@@ -208,11 +211,15 @@ export default class ThreePhysicsScene extends Phaser.Scene {
         const boxHeight = machineHeight * (2.5 / 5.8);
         //設置container
         var newSlotBox = this.add.container(originX + machineWidth * (1.7 / 9.1) + (machineWidth * (0.48 / 9.1) + boxWidth) * index, originY + (machineHeight * (2 / 5.8)));
+        //@ts-ignore //這個box有沒有被按下停止了
+        newSlotBox.tapStop = false;
+        //@ts-ignore // 停止步驟 (如果按下停止,要依序生出由下到上碰撞檢查點的item)
+        newSlotBox.stopStep = 0;
         newSlotBox.width = boxWidth;
         newSlotBox.height = boxHeight;
         this.slotBoxWidth = boxWidth; // box 寬度拿上去
         this.slotBoxHeight = boxHeight; // box 高度拿上去
-        this.itemHeight = boxHeight * 0.3; // 設置圖片需要的高度
+        this.itemHeight = boxHeight * 0.35; // 設置圖片需要的高度
 
         //加入檢查點,不可動
 
@@ -220,7 +227,8 @@ export default class ThreePhysicsScene extends Phaser.Scene {
         const deleteCheckPoint = this.physics.add.image(boxWidth / 2, boxHeight + this.itemHeight + 20, 'check-point');
         const firstFloorCheckPoint = this.physics.add.image(boxWidth / 2, boxHeight * 0.25, 'check-point'); // 第一個佔25%
         const markCheckPoint = this.physics.add.image(boxWidth / 2, boxHeight * 0.75, 'check-point'); // 第二個佔50%
-        const lastFloorCheckPoint = this.physics.add.image(boxWidth / 2, boxHeight + this.itemHeight - 10, 'check-point'); // 第三個佔25%
+        // const lastFloorCheckPoint = this.physics.add.image(boxWidth / 2, boxHeight + this.itemHeight - 10, 'check-point'); // 第三個佔25%
+        const lastFloorCheckPoint = this.physics.add.image(boxWidth / 2, boxHeight * 1.25, 'check-point'); // 第三個佔25%
         // 注意 ,最下面有三個檢查點,幾乎重疊,由上而下分別是
         // 1. 反彈點
         // 2. 新增點
@@ -261,7 +269,7 @@ export default class ThreePhysicsScene extends Phaser.Scene {
 
         // 產生矩行遮罩的位置及大小
         const graphics = this.drawFillRect(newSlotBox.x, newSlotBox.y, newSlotBox.width, newSlotBox.height, 0xffffff, 0);
-        // this.drawRectLine(newSlotBox.x, newSlotBox.y, newSlotBox.width, newSlotBox.height, 0xffffff, 1);
+        this.drawRectLine(newSlotBox.x, newSlotBox.y, newSlotBox.width, newSlotBox.height, 0xffffff, 1);
         // 將box加入遮罩
         newSlotBox.mask = new Phaser.Display.Masks.GeometryMask(this, graphics); // 容器加入遮罩
 
@@ -339,7 +347,7 @@ export default class ThreePhysicsScene extends Phaser.Scene {
                 item.setVelocityY(0)
                 this.allItemList.push(item);
             } else {
-                item.setVelocityY(this.gravityValue)
+                item.setVelocityY(this.dropSpeedValue)
             }
 
             // 加入賠率跟Id
@@ -352,6 +360,7 @@ export default class ThreePhysicsScene extends Phaser.Scene {
             // @ts-ignore
             item.containerIndex = index; // 因為下面push到結果欄時,無法保證他的順序,所以加個index判斷它是屬於哪個container,以備不時之需
 
+
             container.add(item);// 加入容器
 
             //增加碰撞條件, 每個碰到刪除點 都要消失
@@ -363,21 +372,29 @@ export default class ThreePhysicsScene extends Phaser.Scene {
             }));
 
             // // 如果是下停止鈕,那要增加第一個檢查點的碰撞   
-            if (this.machineTapStop === true) {
+            // @ts-ignore
+            if (container.tapStop === true) {
                 var tempGroup: Phaser.GameObjects.Group;
-                if (this.stopStep < 3) {
-                    tempGroup = this.lastFloorCheckPointGroup;
-                    this.stopStep += 1;
-                } else if (this.stopStep < 6) {
-                    tempGroup = this.markCheckPointGroup;
-                    this.stopStep += 1;
-                } else if (this.stopStep < 8) {
-                    tempGroup = this.firstFloorCheckPointGroup;
-                    this.stopStep += 1;
-                } else if (this.stopStep === 8) {
-                    tempGroup = this.firstFloorCheckPointGroup;
-                    this.stopStep = 0;
+
+                //@ts-ignore
+                switch (container.stopStep) {
+                    case 0:
+                        tempGroup = this.lastFloorCheckPointGroup;
+                        //@ts-ignore
+                        container.stopStep += 1;
+                        break;
+                    case 1:
+                        tempGroup = this.markCheckPointGroup;
+                        //@ts-ignore
+                        container.stopStep += 1;
+                        break;
+                    case 2:
+                        tempGroup = this.firstFloorCheckPointGroup;
+                        //@ts-ignore
+                        container.stopStep = 0;
+                        break;
                 }
+
 
                 const collider = this.physics.add.collider(item, tempGroup, ((item: Phaser.Physics.Arcade.Sprite) => {
                     //碰到後做動畫    //y =y原本的位置 - 盒子的一半的一半 + 自己item高的一半 
@@ -389,7 +406,7 @@ export default class ThreePhysicsScene extends Phaser.Scene {
                     }
 
                     this.add.tween({
-                        targets: item, duration: 200, x: container.width / 2, y: yPosition, onComplete: (() => {
+                        targets: item, duration: 100, x: container.width / 2, y: yPosition, onComplete: (() => {
                             // 動畫完成後的callBack
                             // 跑在markGroup的才需要丟進結果
                             if (tempGroup === this.markCheckPointGroup) {
@@ -417,9 +434,12 @@ export default class ThreePhysicsScene extends Phaser.Scene {
         if (this.machineIsRun === true) { return; }
         this.machineIsRun = true;
         this.slotMachine.play('action');
-        this.machineTapStop = false;
+        this.slotBoxList.map((box: Phaser.GameObjects.Container) => {
+            //@ts-ignore
+            box.tapStop = false;
+        })
         this.allItemList.map((item: Phaser.Physics.Arcade.Sprite) => {
-            item.setVelocityY(this.gravityValue);
+            item.setVelocityY(this.dropSpeedValue);
         })
 
         // 所有的item 陣列清空
@@ -430,15 +450,20 @@ export default class ThreePhysicsScene extends Phaser.Scene {
     /** 全部container 馬上停止 */
     allStopImmediately() {
         if (this.machineIsRun === false) { return; }
-        this.machineTapStop = true;
+
+        this.slotBoxList.map((box: Phaser.GameObjects.Container) => {
+            //@ts-ignore
+            box.tapStop = true;
+        })
     }
     /** 全部container依序停止 */
     allStopInorder() {
 
     }
     // 單一container內物件停止
-    stopSingleBoxScroll(obj: ContainerModle) {
-        obj.isDone = true
+    stopSingleBoxScroll(index: number) {
+        // @ts-ignore
+        this.slotBoxList[index].tapStop = true
     }
 
     /** 結算成績 */

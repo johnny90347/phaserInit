@@ -3,6 +3,7 @@ import RatioScene from './scenes/ratioScene'
 import MainScene from './scenes/MainScene'
 import HomeScene from './scenes/homeScene'
 import PhysicsScene from './scenes/physics'
+import ThreePhysicsScene from './scenes/threePhysicsScene'
 const config = {
 	type: Phaser.AUTO,
 	width: 800,
@@ -15,7 +16,7 @@ const config = {
 			// gravity: { y: 200 }
 		}
 	},
-	scene: [PhysicsScene]
+	scene: [ThreePhysicsScene]
 }
 
 export var game: Phaser.Game;

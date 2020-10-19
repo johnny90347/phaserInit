@@ -34,7 +34,7 @@ export default class ThreePhysicsScene extends Phaser.Scene {
     lastFloorCheckPointGroup: Phaser.GameObjects.Group;// 第三層
 
     //最大掉落速度
-    dropSpeedValue = 350;
+    dropSpeedValue = 600;
 
     // machineTapStop = false;//已經被按下停止了嗎?
     // stopStep = 0; //停止步驟 (如果按下停止,要依序生出由下到上碰撞檢查點的item)
@@ -83,7 +83,6 @@ export default class ThreePhysicsScene extends Phaser.Scene {
             'gameWidth': this.gameScreenWidth
         }
         this.alignGrid = new AlignGrid(gridConfig);
-        this.alignGrid.showGridNumber();
 
         // 建立物件
         //生成group 碰撞用
@@ -119,7 +118,6 @@ export default class ThreePhysicsScene extends Phaser.Scene {
         this.createButton(60, '停止', (() => {
             this.stopSingleBoxScroll(2);
         }));
-
     }
 
 
@@ -169,7 +167,6 @@ export default class ThreePhysicsScene extends Phaser.Scene {
             actionButton.setFrame(0);
         });
     }
-
 
     /** 建立角子機的機器圖案 */
     createSlotMachine() {
@@ -269,7 +266,7 @@ export default class ThreePhysicsScene extends Phaser.Scene {
 
         // 產生矩行遮罩的位置及大小
         const graphics = this.drawFillRect(newSlotBox.x, newSlotBox.y, newSlotBox.width, newSlotBox.height, 0xffffff, 0);
-        this.drawRectLine(newSlotBox.x, newSlotBox.y, newSlotBox.width, newSlotBox.height, 0xffffff, 1);
+        // this.drawRectLine(newSlotBox.x, newSlotBox.y, newSlotBox.width, newSlotBox.height, 0xffffff, 1);
         // 將box加入遮罩
         newSlotBox.mask = new Phaser.Display.Masks.GeometryMask(this, graphics); // 容器加入遮罩
 
@@ -445,20 +442,37 @@ export default class ThreePhysicsScene extends Phaser.Scene {
         // 所有的item 陣列清空
         this.resultList = [];
         this.allItemList = [];
+
+        // 自動x秒後停止
+        setTimeout(() => {
+            this.allStopInorder();
+        }, 500);
+
     }
 
     /** 全部container 馬上停止 */
     allStopImmediately() {
         if (this.machineIsRun === false) { return; }
-
         this.slotBoxList.map((box: Phaser.GameObjects.Container) => {
             //@ts-ignore
             box.tapStop = true;
         })
     }
-    /** 全部container依序停止 */
+    /** 全部container"依序"停止 */
     allStopInorder() {
-
+        let roundTemp = this.round; // 記下當下的回合數字 (這是複製,所以不會有問題);
+        let index = 0;
+        let interval = setInterval(() => {
+            // 代表同一回合 , index< 3 ,機器還在跑的情況
+            if (this.round === roundTemp && index < 3 && this.machineIsRun === true) {
+                //@ts-ignore
+                this.slotBoxList[index].tapStop = true;
+                index += 1;
+            } else {
+                // 不同回合,這個interval 就沒屁用;
+                clearInterval(interval);
+            }
+        }, 400);
     }
     // 單一container內物件停止
     stopSingleBoxScroll(index: number) {
@@ -495,22 +509,25 @@ export default class ThreePhysicsScene extends Phaser.Scene {
                                 animationAmount += 1;
                                 // 代表三個都做完動畫了
                                 if (animationAmount >= 3) {
-                                    console.log('本局全部完成');
-                                    this.machineIsRun = false;
+                                    this.roundFinished();
+
                                 }
                             })
                         })
                     })
                 })
             })
-        }
-
-
-
-        if (sameItems.length < 3) {
+        } else if (sameItems.length < 3) {
             console.log('沒中喔~,再接再厲')
-            console.log('本局全部完成');
-            this.machineIsRun = false;
+            this.roundFinished();
         }
+
+    }
+
+    /**本局結束 */
+    roundFinished() {
+        console.log('本局全部完成');
+        this.machineIsRun = false;
+        this.round += 1;
     }
 }
